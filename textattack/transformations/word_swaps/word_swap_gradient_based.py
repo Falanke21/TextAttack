@@ -40,7 +40,10 @@ class WordSwapGradientBased(WordSwap):
         self.model_wrapper = model_wrapper
         self.tokenizer = self.model_wrapper.tokenizer
         # Make sure we know how to compute the gradient for this model.
-        validate_model_gradient_word_swap_compatibility(self.model)
+
+        # Remove the validation step in order to use user-custom models
+        # validate_model_gradient_word_swap_compatibility(self.model)
+        
         # Make sure this model has all of the required properties.
         if not hasattr(self.model, "get_input_embeddings"):
             raise ValueError(

@@ -27,7 +27,7 @@ class AttackLogManager:
     # metrics maps strings (metric names) to textattack.metric.Metric objects
     metrics: Dict
 
-    def __init__(self, metrics: Optional[Dict]):
+    def __init__(self, metrics: Optional[Dict], log_individual_attack_results, attack_recipe):
         self.loggers = []
         self.results = []
         self.enable_advance_metrics = False
@@ -35,6 +35,8 @@ class AttackLogManager:
             self.metrics = {}
         else:
             self.metrics = metrics
+        self.log_individual_attack_results = log_individual_attack_results
+        self.attack_recipe = attack_recipe
 
     def enable_stdout(self):
         self.loggers.append(FileLogger(stdout=True))
@@ -90,10 +92,43 @@ class AttackLogManager:
         ]
         self.log_summary_rows(attack_detail_rows, "Attack Details", "attack_details")
 
+    def _log_individual_attack_result_to_csv(self):
+        """
+        Log the individual attack results as a CSV file to the directory specified by 
+        log_individual_attack_results. The csv file would contain N rows, 
+        where N is the number of examples attacked. Each row would contain a single 
+        character, where s means the attack was successful, f means the attack failed, 
+        and k means the attack was skipped.
+        """
+        import csv
+        import os
+        from textattack.attack_results import FailedAttackResult, SkippedAttackResult
+
+        # check that the directory exists, if not create it
+        if not os.path.exists(self.log_individual_attack_results):
+            os.makedirs(self.log_individual_attack_results)
+        csv_filename = f"{self.log_individual_attack_results}/{self.attack_recipe}.csv"
+        print(f"Logging individual attack results to {csv_filename}")
+
+        with open(csv_filename, "w") as csvfile:
+            csvwriter = csv.writer(csvfile)
+            for result in self.results:
+                if isinstance(result, FailedAttackResult):
+                    csvwriter.writerow(["f"])
+                elif isinstance(result, SkippedAttackResult):
+                    csvwriter.writerow(["k"])
+                else:
+                    csvwriter.writerow(["s"])
+
     def log_summary(self):
         total_attacks = len(self.results)
         if total_attacks == 0:
             return
+
+        # Now we have a list of attack results
+        # we first log the individual attack results to a csv file
+        if self.log_individual_attack_results:  # if not None
+            self._log_individual_attack_result_to_csv()
 
         # Default metrics - calculated on every attack
         attack_success_stats = AttackSuccessRate().calculate(self.results)

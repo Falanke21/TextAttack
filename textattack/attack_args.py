@@ -186,6 +186,10 @@ class AttackArgs:
             Disable all logging (except for errors). This is stronger than :obj:`disable_stdout`.
         enable_advance_metrics (:obj:`bool`, `optional`, defaults to :obj:`False`):
             Enable calculation and display of optional advance post-hoc metrics like perplexity, grammar errors, etc.
+        log-individual-attack-results (:obj:`str`, `optional`, defaults to :obj:`None`):
+            If set, log the individual attack results as a CSV file to the directory specified by this argument.
+            The csv file would contain n rows, where n is the number of examples attacked.
+            Each row would contain a single character, where s means the attack was successful, f means the attack failed, and k means the attack was skipped.
     """
 
     num_examples: int = 10
@@ -209,6 +213,7 @@ class AttackArgs:
     silent: bool = False
     enable_advance_metrics: bool = False
     metrics: Optional[Dict] = None
+    log_individual_attack_results: str = None
 
     def __post_init__(self):
         if self.num_successful_examples:
@@ -383,6 +388,14 @@ class AttackArgs:
             default=default_obj.enable_advance_metrics,
             help="Enable calculation and display of optional advance post-hoc metrics like perplexity, USE distance, etc.",
         )
+        parser.add_argument(
+            "--log-individual-attack-results",
+            nargs="?",
+            default=default_obj.log_individual_attack_results,
+            const="",
+            type=str,
+            help="Path to the directory which to save attack results for each example as CSV files."
+        )
 
         return parser
 
@@ -394,7 +407,9 @@ class AttackArgs:
         ), f"Expect args to be of type `{type(cls)}`, but got type `{type(args)}`."
 
         # Create logger
-        attack_log_manager = textattack.loggers.AttackLogManager(args.metrics)
+        attack_log_manager = textattack.loggers.AttackLogManager(args.metrics, 
+                                                                 args.log_individual_attack_results,
+                                                                 args.attack_recipe)
 
         # Get current time for file naming
         timestamp = time.strftime("%Y-%m-%d-%H-%M")
